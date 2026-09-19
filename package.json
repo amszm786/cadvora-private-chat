@@ -1,6 +1,6 @@
 {
-  "name": "cadvora-private-chat-v11",
-  "version": "10.0.0",
+  "name": "cadvora-private-chat-v12",
+  "version": "12.0.0",
   "private": true,
   "main": "server.js",
   "scripts": {
