@@ -1,0 +1,32 @@
+CADVORA Private Chat V9 — FINAL LAN / notification build
+
+What changed:
+- Incoming browser notifications now have an explicit Enable Notifications button.
+- Test Notification button lets each laptop verify notification permission.
+- Clicking a notification attempts to focus the CADVORA chat window/tab.
+- 12-hour AM/PM time is enforced.
+- Existing two-way messaging, persistent server history, offline queue, delivered/read logic remain.
+- Read acknowledgement retries when the chat becomes visible/focused.
+
+Important limitation:
+A browser Notification is not a true push notification when Chrome is completely terminated. This V9 can notify while the browser/chat page is running in the background or minimized, provided Windows/browser notification permission is enabled. A true notification while Chrome is completely closed requires a push service (HTTPS + Web Push) or a desktop app that remains running in the Windows tray.
+
+Recommended final deployment:
+For office/home over different internet connections, deploy the server on a small HTTPS host and change the client to use that WSS endpoint. Do not expose this raw HTTP LAN server directly to the public internet.
+
+Quick test:
+1. Stop V8 with Ctrl+C.
+2. Extract V9.
+3. In V9 folder: npm.cmd install
+4. npm.cmd start
+5. Server laptop: http://localhost:8787
+6. Wife laptop: http://SERVER-IP:8787
+7. Pair again.
+8. On BOTH laptops click Enable Notifications and accept the Windows/browser permission.
+9. Click Test Notification on each laptop. Click the notification to verify focus.
+10. Send messages both directions.
+11. Minimize wife Chrome and send from Zeeshan: notification should appear if permission is enabled; message should be delivered but not read until the chat is visible.
+12. Close Chrome completely and send: no browser notification should be expected from this LAN web build. The queued message should appear after reopening, and then become read when visible.
+
+Notification sound:
+The web Notification API does not provide a reliable per-notification custom sound setting. Windows/Chrome control the notification sound. A custom sound requires a desktop app approach or in-page audio while the page is active.

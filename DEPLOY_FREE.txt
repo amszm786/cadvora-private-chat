@@ -1,0 +1,27 @@
+CADVORA PRIVATE CHAT V10 — FREE HTTPS DEPLOYMENT
+
+This build is designed for Render Free.
+It uses in-memory messaging only. No chat history/database is stored permanently yet.
+
+1. Create a GitHub repository named: cadvora-private-chat
+2. Upload ALL files from this folder to the repository.
+3. Open Render: https://render.com/
+4. Create New -> Web Service.
+5. Connect the GitHub repository.
+6. Settings:
+   Build Command: npm install
+   Start Command: npm start
+   Plan: Free
+7. Create Web Service.
+8. Render will provide an HTTPS address similar to:
+   https://cadvora-private-chat.onrender.com
+9. Open that SAME HTTPS address on both laptops.
+10. On Zeeshan laptop: Create Pairing Code.
+11. On wife's laptop: Join using the code.
+12. Click Enable Notifications on each laptop and allow notifications.
+
+IMPORTANT:
+- Free Render services can sleep after 15 minutes without inbound traffic.
+- This V10 intentionally does NOT persist chat history or pairing data.
+- If the free service restarts/sleeps, pairing state can be lost and the devices may need to pair again.
+- Persistent history/database and reliable closed-browser Web Push can be added later.
