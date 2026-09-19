@@ -1,0 +1,20 @@
+CADVORA Private Chat V11 — Deployment
+
+1. Replace the files in the existing GitHub repository with this package's files.
+2. Keep the repository public for the current Abasthan deployment.
+3. Push/commit to the main branch.
+4. Abasthan should auto-deploy the new commit.
+5. Keep using the same HTTPS chat URL.
+
+V11 fixes:
+- Automatic WebSocket reconnect with backoff.
+- Messages can be typed/sent while temporarily offline.
+- Offline outgoing messages stay at single tick (sent/queued).
+- Queued messages automatically send when connection returns.
+- Grey double tick when the server delivers the message.
+- Blue double tick when the other device reads it.
+- Duplicate-safe resend after a connection drop.
+- WebSocket heartbeat to detect dead connections.
+- Server binds to 0.0.0.0 as recommended for Abasthan.
+
+Still intentionally no database/persistent server storage in V11.

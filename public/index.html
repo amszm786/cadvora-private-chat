@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CADVORA Private Chat V9</title>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CADVORA Private Chat V11</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eef1f5;font-family:Arial,sans-serif}.app{max-width:900px;height:100vh;margin:auto;background:#fff;display:flex;flex-direction:column}.head{padding:14px 18px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between}.title{font-size:20px;font-weight:700}.sub{font-size:12px;color:#66717a;margin-top:4px}.setup{padding:18px;border-bottom:1px solid #ddd;background:#fafafa}.setup input{padding:10px;border:1px solid #bbb;border-radius:8px;width:230px}button{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}.code{font:700 24px monospace;letter-spacing:4px;margin-left:12px}.messages{flex:1;overflow:auto;padding:18px}.msg{max-width:72%;padding:10px 13px;margin:8px 0;border-radius:14px;background:#eee}.mine{margin-left:auto;background:#e7f7df}.meta{font-size:11px;color:#66717a;margin-top:5px;text-align:right}.ticks{font-weight:700;letter-spacing:-2px}.blue{color:#1789e6}.typing{height:22px;padding:0 18px;font-size:12px;color:#66717a}.bar{padding:7px 18px;border-top:1px solid #eee;font-size:11px;color:#66717a;background:#fafafa}.ok{color:#147a3e}.warn{color:#9a6700}.danger{color:#b42318}footer{padding:12px;border-top:1px solid #ddd;display:flex;gap:8px}footer input{flex:1;padding:12px 15px;border:1px solid #bbb;border-radius:24px;font-size:15px}</style>
 </head><body><div class="app">
@@ -11,7 +11,7 @@
 <footer><input id="input" placeholder="Type a message…" autocomplete="off"><button id="send">➤</button></footer>
 </div>
 <script>
-let ws,deviceId=localStorage.v9id||"",name=localStorage.v9name||"",paired=localStorage.v9paired==="1",peer=localStorage.v9peer||"",items=JSON.parse(localStorage.v9msgs||"[]"),timer;
+let ws,deviceId=localStorage.v9id||"",name=localStorage.v9name||"",paired=localStorage.v9paired==="1",peer=localStorage.v9peer||"",items=JSON.parse(localStorage.v9msgs||"[]"),timer,reconnectTimer,reconnectDelay=1000,manualStop=false;
 const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const mid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2);
 const fmt=t=>new Date(t).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",hour12:true});
@@ -24,10 +24,13 @@ function openFromNotification(){try{window.focus();document.title="CADVORA Priva
 function notify(t,b){if(!("Notification"in window))return;if(Notification.permission!=="granted")return;try{const n=new Notification(t,{body:b,tag:"cadvora-private-chat"});n.onclick=()=>{openFromNotification();n.close()}}catch(e){}}
 function merge(m){let x=items.find(v=>v.id===m.id);if(!x){x={id:m.id,text:m.text,mine:m.from===deviceId,time:fmt(m.time),status:m.status||"received"};items.push(x)}else{x.text=m.text;x.status=m.status||x.status;x.time=fmt(m.time)}return x}
 function markVisibleRead(){if(document.visibilityState!=="visible"||!ws||ws.readyState!==1)return;items.filter(m=>!m.mine&&m.status!=="read").forEach(m=>ws.send(JSON.stringify({type:"read",messageId:m.id})));ws.send(JSON.stringify({type:"markAllRead"}))}
-function connect(){if(ws&&(ws.readyState===0||ws.readyState===1))return;ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host);
-ws.onopen=()=>{ws.send(JSON.stringify({type:"register",deviceId,name}));$("bar").textContent="Connection: connected";render()};
-ws.onclose=()=>{$("bar").textContent="Connection: disconnected";render()};
-ws.onerror=()=>{$("bar").textContent="Connection error";};
+function socketUrl(){return (location.protocol==="https:"?"wss://":"ws://")+location.host}
+function scheduleReconnect(){if(manualStop||reconnectTimer)return;clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>{reconnectTimer=null;connect()},reconnectDelay);reconnectDelay=Math.min(reconnectDelay*2,15000)}
+function flushOutbox(){if(!ws||ws.readyState!==1||!paired)return;items.filter(m=>m.mine&&m.status==="sent").forEach(m=>ws.send(JSON.stringify({type:"chat",messageId:m.id,text:m.text})))}
+function connect(){if(manualStop||ws&&(ws.readyState===0||ws.readyState===1))return;ws=new WebSocket(socketUrl());
+ws.onopen=()=>{reconnectDelay=1000;ws.send(JSON.stringify({type:"register",deviceId,name}));$("bar").textContent="Connection: connected";render();setTimeout(flushOutbox,150)};
+ws.onclose=()=>{$("bar").textContent="Connection: disconnected — reconnecting…";render();scheduleReconnect()};
+ws.onerror=()=>{$("bar").textContent="Connection error — reconnecting…";render()};
 ws.onmessage=e=>{const m=JSON.parse(e.data);
  if(m.type==="registered"){deviceId=m.deviceId;localStorage.v9id=deviceId;if(m.paired){paired=true;peer=m.peerName||peer;localStorage.v9paired="1";localStorage.v9peer=peer}render();setTimeout(markVisibleRead,300)}
  if(m.type==="history"){m.messages.forEach(merge);save();render();setTimeout(markVisibleRead,300)}
@@ -36,7 +39,7 @@ ws.onmessage=e=>{const m=JSON.parse(e.data);
  if(m.type==="paired"){paired=true;peer=m.peerName;localStorage.v9paired="1";localStorage.v9peer=peer;render()}
  if(m.type==="delivered"){let x=items.find(v=>v.id===m.messageId);if(x){x.status="delivered";save();render()}}
  if(m.type==="read"){let x=items.find(v=>v.id===m.messageId);if(x){x.status="read";save();render()}}
- if(m.type==="sendError")$("info").textContent=m.message;
+ if(m.type==="sendError"){$("info").textContent=m.message;render()}
  if(m.type==="message"){let x=merge(m);x.mine=false;x.status="delivered";save();render();notify(m.fromName,m.text);if(document.visibilityState==="visible")setTimeout(markVisibleRead,150)}
  if(m.type==="typing")$("typing").textContent=m.on?m.name+" is typing…":"";
  if(m.type==="peerOffline")render();
@@ -47,7 +50,7 @@ $("notif").onclick=enableNotifications;
 $("testNotif").onclick=()=>{enableNotifications();setTimeout(()=>notify("CADVORA Private Chat","Test notification — click to return to the chat."),300)};
 $("gen").onclick=()=>ws&&ws.readyState===1&&ws.send(JSON.stringify({type:"createPair"}));
 $("joinBtn").onclick=()=>ws&&ws.readyState===1&&ws.send(JSON.stringify({type:"joinPair",code:$("join").value.trim()}));
-function send(){const i=$("input"),t=i.value.trim();if(!t)return;if(!ws||ws.readyState!==1){$("info").textContent="Not connected to server.";return}const id=mid();items.push({id,text:t,mine:true,status:"sent",time:fmt(Date.now())});save();render();ws.send(JSON.stringify({type:"chat",messageId:id,text:t}));i.value=""}
+function send(){const i=$("input"),t=i.value.trim();if(!t)return;const id=mid();items.push({id,text:t,mine:true,status:"sent",time:fmt(Date.now())});save();render();i.value="";if(ws&&ws.readyState===1&&paired){ws.send(JSON.stringify({type:"chat",messageId:id,text:t}))}else{$("info").textContent="Offline — message queued. It will send automatically when connection returns."}}
 $("send").onclick=send;$("input").onkeydown=e=>{if(e.key==="Enter")send()};
 $("input").oninput=()=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:"typing",on:true}));clearTimeout(timer);timer=setTimeout(()=>ws&&ws.readyState===1&&ws.send(JSON.stringify({type:"typing",on:false})),700)};
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")setTimeout(markVisibleRead,150)});
